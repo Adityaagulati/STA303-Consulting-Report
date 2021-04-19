@@ -4,9 +4,120 @@ author: "Ray Chen"
 date: "4/10/2021"
 output: pdf_document
 ---
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# HI 
+
+```{r Libraries, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(lme4)
+library(gamm4)
+```
+
+```{r}
+# Data
+black_saber_current_employees <- read.csv("data/black-saber-current-employees.csv")
+final_hires_newgrad_2020 <- read.csv("data/final-hires-newgrad_2020.csv")
+phase_1 <- read.csv("data/phase1-new-grad-applicants-2020.csv")
+phase_2 <- read.csv("data/phase2-new-grad-applicants-2020.csv")
+phase_3 <- read.csv("data/phase3-new-grad-applicants-2020.csv")
+```
+
+
+
+```{r}
+# each employee serve different number of years at the company
+employee_clean <- black_saber_current_employees %>% 
+  group_by(employee_id) 
+
+
+# Summarize promotion data for each employee
+promotion_stat <- employee_clean %>% 
+  group_by(employee_id ,role_seniority) %>% 
+  summarise(count = n(), .groups = 'drop') %>% 
+  group_by(employee_id) %>% 
+  mutate(quarter_of_service= sum(count)) 
+
+
+#times of promotion 
+n_promotion <- promotion_stat %>% 
+  group_by(employee_id) %>% 
+  count(role_seniority) %>% 
+  summarise(n_promotion = n() -1 , .groups = 'drop') 
+
+
+
+# join promotion number and quarter_of_service together 
+promotion_rate <-  full_join(n_promotion, promotion_stat, by = "employee_id") %>% 
+  mutate(rate = n_promotion/quarter_of_service) %>% 
+  arrange(-rate)
+
+# promoted employees and their promotion rate by quarter
+subset <- promotion_rate %>% 
+  select(employee_id, rate) %>% 
+  distinct()
+
+
+# Define promotion rate and add to the employee dataset
+fully_clean <- left_join(employee_clean, subset, by = "employee_id")
+
+```
+
+
+```{r}
+# Define dummy variable and specify each quarter's promotion status
+testing <- employee_clean %>% 
+  group_by(employee_id) %>% 
+  mutate(x = lag(role_seniority)) %>% 
+  mutate(promoted = ifelse(role_seniority != x, 1,0)) %>% 
+  mutate(promoted = ifelse(is.na(promoted), 0, promoted)) %>% 
+  mutate(team = as_factor(team)) %>% 
+  mutate(leadership_for_level =fct_relevel(leadership_for_level))
+
+testing %>% 
+  group_by(promoted) %>% 
+  summarise(count = n(), .groups = 'drop')
+
+
+levels(testing$leadership_for_level)
+
+# data for promotion count link to each person's employee data
+dat_new <- full_join(n_promotion, employee_clean, by = "employee_id") 
+
+
+```
+
+# data exploration    
+```{r}
+promotion_rate %>% 
+  group_by(gender) %>% 
+  ggplot(aes(x = gender, y = rate)) + 
+  geom_boxplot()
+  
+```
+
+
+
+# Fitting the model
+```{r}
+# fit a Poisson model (Zero Inflated)
+model_1 <- glm(promoted ~ productivity + gender , data = testing, family = binomial(link= "logit"))
+summary(model_1)
+confint(model_1)
+
+
+#  add leadership for level
+model_2 <- glm(promoted ~ productivity + gender + leadership_for_level, data = testing, family = binomial(link = "logit"))
+summary(model_2)
+confint(model_2)
+
+# add random intercept for teams 
+model_3 <- gamm4(promoted ~ productivity + gender+ leadership_for_level+ s(team, bs = "re") , family = binomial(link = "logit"), data = testing)
+
+# model with only random effect
+model_4 <- glmer(promoted ~ 1 + (1|team), family = binomial , data = testing)
+summary(model_4)
+confint(model_4)
+```
