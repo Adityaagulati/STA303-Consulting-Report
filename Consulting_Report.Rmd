@@ -1,7 +1,7 @@
 ---
 title: "Report title"
 subtitle: "Subtitle"
-author: "Report prepared for Black Saber Software by Eminence Analytics"
+author: "Report prepared for Black Saber Software by RACS Consulting Limited"
 date: 2021-04-21
 lang: "en"
 output:
@@ -85,12 +85,96 @@ ggsave("images/example.png", width = 7, height = 4)
 
 ![](images/example.png)
 
-## Informative title for section addressing a research question
-## Informative title for section addressing a research question
-
 ```{r, include = FALSE}
 library(tidyverse)
 library(lme4)
+
+employees <- read_csv("data/black-saber-current-employees.csv")
+phase1 <- read_csv("data/phase1-new-grad-applicants-2020.csv")
+phase2 <- read_csv("data/phase2-new-grad-applicants-2020.csv")
+phase3 <- read_csv("data/phase3-new-grad-applicants-2020.csv")
+hires <- read_csv("data/final-hires-newgrad_2020.csv")
+```
+
+## Informative title for section addressing a research question
+## Informative title for section addressing a research question
+## Is bias present in the final round of the hiring process?
+```{r}
+phase2 <- phase2 %>%
+  mutate(phase = 2)
+
+phase3 <- phase3 %>%
+  mutate(phase = 3)
+
+hires <- hires %>%
+  mutate(phase = 4)
+
+applicants <- phase2 %>%
+  full_join(phase3, by = c("applicant_id")) %>%
+  full_join(hires, by = c("applicant_id")) %>%
+  rowwise() %>%
+  mutate(
+    phase = max(phase, phase.x, phase.y, na.rm = TRUE),
+    hired = ifelse(phase == 4, 1, 0)
+  ) %>%
+  select(-c(phase.x, phase.y))
+
+phase3 <- phase3 %>%
+  left_join(phase2, by = c("applicant_id")) %>%
+  select(-c(phase.y)) %>%
+  left_join(hires, by = c("applicant_id")) %>%
+  rowwise() %>%
+  mutate(
+    phase = max(phase, phase.x, na.rm = TRUE),
+    hired = ifelse(phase == 4, 1, 0),
+    total_rating = interviewer_rating_1 + interviewer_rating_2
+  ) %>%
+  select(-c(phase.x))
+
+hires <- hires %>%
+  select(-c(phase)) %>%
+  left_join(phase3, by = c("applicant_id"))
+```
+
+```{r}
+# Tables
+
+addmargins(table(applicants$team_applied_for, applicants$gender))
+table(phase3$team_applied_for, phase3$gender)
+table(hires$team_applied_for, hires$gender)
+
+phase3 %>%
+  group_by(gender) %>%
+  summarise(
+    "Rating 1" = mean(interviewer_rating_1),
+    "Rating 2" = mean(interviewer_rating_2),
+    "Leadership Presence" = mean(leadership_presence),
+    "Speaking Skills" = mean(speaking_skills),
+    "Writing Skills" = mean(writing_skills),
+    "Technical Skills" = mean(technical_skills)
+  )
+```
+
+```{r}
+# Models
+
+# Gender does not affect rating - interviewers seem to only look at skills/leadership (a biased measure)
+rating_model <- lmer(total_rating ~ gender + leadership_presence + writing_skills + speaking_skills + technical_skills + (1|team_applied_for), data = phase3)
+summary(rating_model)
+confint(rating_model)
+
+# Hired models
+
+# Everyone who passed phase 1
+glmer(hired ~ gpa + gender + extracurriculars + work_experience + technical_skills + writing_skills + speaking_skills + leadership_presence + (1|team_applied_for), family = binomial(link = "logit"), data = applicants)
+
+# Only people who made it to phase 3
+hired_simple <- glm(hired ~ gender + interviewer_rating_1 + interviewer_rating_2, family = binomial(link = "logit"), data = phase3)
+
+hired_complex <- glm(hired ~ gender + interviewer_rating_1 + interviewer_rating_2 + leadership_presence + writing_skills + speaking_skills + technical_skills, family = binomial(link = "logit"), data = phase3)
+
+lmtest::lrtest(hired_simple, hired_complex)
+summary(hired_simple)
 ```
 
 ## Discussion
