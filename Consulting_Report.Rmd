@@ -180,52 +180,58 @@ summary(hired_simple)
 
 
 ```{r}
+# Checking if Phase_2 candidates selected by AI is bias or not
 phase_1_selection <- phase1_new_grad_applicants_2020 %>%
-  mutate(selection = ifelse(cover_letter == 1 & cv == 1 & gpa > 2 & extracurriculars > 0 & work_experience > 0,1,0))
-model_1 <- lme4::glmer(selection ~ gender + (1|team_applied_for),family='binomial', data= phase_1_selection,nAGQ = 0)
+  mutate(selection = ifelse(cover_letter == 1 & cv == 1 & gpa > 2 & extracurriculars > 0 & work_experience > 0,1,0)) #adding selecting criteria
+model_1 <- lme4::glmer(selection ~ gender + (1|team_applied_for),family='binomial', data= phase_1_selection,nAGQ = 0) #checking if depended on gender
 summary(model_1)
 model_2 <- glm(selection ~ cv + cover_letter + gpa + extracurriculars + work_experience ,family='binomial', data= phase_1_selection)
-summary(model_2)
+summary(model_2) # checking if depended on variables other than gender
 ```
-```{r}
+```{r} 
+# testing model on phase_2
+
 phase_2_selection <- left_join(phase2_new_grad_applicants_2020,phase_1_selection)
 phase_2_selection$model_preb <- predict(model_1, phase_2_selection,type = "response")
-phase_2_selection <- phase_2_selection  %>% mutate(model_pred = 1*(model_preb > .5) + 0,
+phase_2_selection <- phase_2_selection  %>% mutate(model_pred = 1*(model_preb > .5) + 0, #checking for model_1
                                  visit_binary = 1*(selection == 1) + 0)
 phase_2_selection <- phase_2_selection %>% mutate(accurate = 1*(model_pred == visit_binary))
 sum(phase_2_selection$accurate)/nrow(phase_2_selection)
-phase_2_selection$model_preb2 <- predict(model_2, phase_2_selection,type = "response")
-phase_2_selection <- phase_2_selection  %>% mutate(model_pred2 = 1*(model_preb2 > .5) + 0,
+phase_2_selection$model_preb2 <- predict(model_2, phase_2_selection,type = "response")  # checking for model_2
+phase_2_selection <- phase_2_selection  %>% mutate(model_pred2 = 1*(model_preb2 > .5) + 0, 
                                  visit_binary2 = 1*(selection == 1) + 0)
 phase_2_selection <- phase_2_selection %>% mutate(accurate2 = 1*(model_pred2 == visit_binary2))
 sum(phase_2_selection$accurate2)/nrow(phase_2_selection)
 ```
 ```{r}
-model_speaking <- lmer(speaking_skills ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020 )
+# Chekcing if phase_3 candiadates selected by AI are based on bias or not 
+
+model_speaking <- lmer(speaking_skills ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020 ) # if the speaking_skills depended on gender
 summary(model_speaking)
 confint(model_speaking)
-model_writing <- lmer(writing_skills ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020)
+model_writing <- lmer(writing_skills ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020) # if the writing_skills depended on gender
 summary(model_writing)
-model_leadership <- lmer(leadership_presence ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020)
+model_leadership <- lmer(leadership_presence ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020) # if the leadership_presence depended on gender
 summary(model_leadership)
 confint(model_leadership)
-model_technical <- lmer(technical_skills ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020)
+model_technical <- lmer(technical_skills ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020)  # if the technical_skills depended on gender
 summary(model_technical)
 ```
 ```{r}
-set.seed(0877)
-selected <- replicate(1, n = 22)
+set.seed(1)
+selected <- replicate(1, n = 22) # adding a selected variable  
 phase_3_selected <- cbind(phase3_new_grad_applicants_2020,selected)
 phase_3_selected_join <- left_join(phase_3_selected,phase2_new_grad_applicants_2020)
 phase_merge <- left_join(phase2_new_grad_applicants_2020,phase_3_selected)
 phase_merge[is.na(phase_merge)] = 0
 model_3 <- lme4::glmer(selected ~ gender + (1|team_applied_for),family='binomial', data= phase_merge,nAGQ = 0)
-summary(model_3)
-model_4 <- glmer(selected ~ writing_skills + leadership_presence +(leadership_presence|gender) + speaking_skills  + (speaking_skills|gender) + extracurriculars + technical_skills + work_experience,family='binomial', data= phase_merge)
+summary(model_3) #checking if selected depended on gender
+model_4 <- glmer(selected ~ writing_skills + leadership_presence +(leadership_presence|gender) + speaking_skills  + (speaking_skills|gender) + extracurriculars + technical_skills + work_experience,family='binomial', data= phase_merge) #checking if selected depended on other variables
 summary(model_4)
 ```
 
-```{r}
+```{r} 
+# testing models on pahse_3
 phase_3_selected_join$model_preb <- predict(model_3, phase_3_selected_join,type = "response")
 phase_3_selected_join <- phase_3_selected_join  %>% mutate(model_pred = 1*(model_preb > .5) + 0,
                                  visit_binary = 1*(selected == 1) + 0)
