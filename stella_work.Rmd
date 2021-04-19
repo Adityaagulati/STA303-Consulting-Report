@@ -6,21 +6,58 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lme4)
+
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
-test1
+```{r read data}
 
-```{r cars}
+black_saber_current_employees <- read_csv("data/black-saber-current-employees.csv")
 
 ```
 
-## Including Plots
+```{r data wrangling}
 
-You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+black_saber_current_employees <- black_saber_current_employees %>% 
+  mutate(
+    salary = as.numeric(gsub('[$,]', '', salary))
+  ) %>% 
+  mutate(gender = ifelse(gender == "Man", 1, 0))
+
+# Relevel the roles in ascending order
+black_saber_current_employees$role_seniority = fct_relevel(
+    black_saber_current_employees$role_seniority,
+    "Entry-level",
+    "Junior I",
+    "Junior II",
+    "Senior I",
+    "Senior II",
+    "Senior III",
+    "Manager",
+    "Director",
+    "Vice president"
+  )
+
+black_saber_current_employees$leadership_for_level = fct_relevel(
+  black_saber_current_employees$leadership_for_level,
+  "Appropriate for level",
+  "Needs improvement",
+  "Exceeds expectations"
+)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r model}
+
+model1 <- lmer(salary ~ gender + role_seniority + leadership_for_level + productivity + (1|team), data = black_saber_current_employees)
+
+summary(model1)
+confint(model1)
+
+model2 <- glm(salary ~ gender + role_seniority + leadership_for_level + productivity, data = black_saber_current_employees)
+
+summary(model2)
+
+```
