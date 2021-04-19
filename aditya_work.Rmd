@@ -5,26 +5,65 @@ date: "4/10/2021"
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r}
+phase_1_selection <- phase1_new_grad_applicants_2020 %>%
+  mutate(selection = ifelse(cover_letter == 1 & cv == 1 & gpa > 2 & extracurriculars > 0 & work_experience > 0,1,0))
+model_1 <- lme4::glmer(selection ~ gender + (1|team_applied_for),family='binomial', data= phase_1_selection,nAGQ = 0)
+summary(model_1)
+model_2 <- glm(selection ~ cv + cover_letter + gpa + extracurriculars + work_experience ,family='binomial', data= phase_1_selection)
+summary(model_2)
 ```
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r cars}
-summary(cars)
+phase_2_selection <- left_join(phase2_new_grad_applicants_2020,phase_1_selection)
+phase_2_selection$model_preb <- predict(model_1, phase_2_selection,type = "response")
+phase_2_selection <- phase_2_selection  %>% mutate(model_pred = 1*(model_preb > .5) + 0,
+                                 visit_binary = 1*(selection == 1) + 0)
+phase_2_selection <- phase_2_selection %>% mutate(accurate = 1*(model_pred == visit_binary))
+sum(phase_2_selection$accurate)/nrow(phase_2_selection)
+phase_2_selection$model_preb2 <- predict(model_2, phase_2_selection,type = "response")
+phase_2_selection <- phase_2_selection  %>% mutate(model_pred2 = 1*(model_preb2 > .5) + 0,
+                                 visit_binary2 = 1*(selection == 1) + 0)
+phase_2_selection <- phase_2_selection %>% mutate(accurate2 = 1*(model_pred2 == visit_binary2))
+sum(phase_2_selection$accurate2)/nrow(phase_2_selection)
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r,warning= FALSE}
+model_speaking <- lmer(speaking_skills ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020 )
+summary(model_speaking)
+confint(model_speaking)
+model_writing <- lmer(writing_skills ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020)
+summary(model_writing)
+model_leadership <- lmer(leadership_presence ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020)
+summary(model_leadership)
+confint(model_leadership)
+model_technical <- lmer(technical_skills ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020)
+summary(model_technical)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+set.seed(0877)
+selected <- replicate(1, n = 22)
+phase_3_selected <- cbind(phase3_new_grad_applicants_2020,selected)
+phase_3_selected_join <- left_join(phase_3_selected,phase2_new_grad_applicants_2020)
+phase_merge <- left_join(phase2_new_grad_applicants_2020,phase_3_selected)
+phase_merge[is.na(phase_merge)] = 0
+model_3 <- lme4::glmer(selected ~ gender + (1|team_applied_for),family='binomial', data= phase_merge,nAGQ = 0)
+summary(model_3)
+model_4 <- glmer(selected ~ writing_skills + leadership_presence +(leadership_presence|gender) + speaking_skills  + (speaking_skills|gender) + extracurriculars + technical_skills + work_experience,family='binomial', data= phase_merge)
+summary(model_4)
+```
+```{r}
+phase_3_selected_join$model_preb <- predict(model_3, phase_3_selected_join,type = "response")
+phase_3_selected_join <- phase_3_selected_join  %>% mutate(model_pred = 1*(model_preb > .5) + 0,
+                                 visit_binary = 1*(selected == 1) + 0)
+phase_3_selected_join <- phase_3_selected_join %>% mutate(accurate = 1*(model_pred == visit_binary))
+sum(phase_3_selected_join$accurate)/nrow(phase_3_selected_join)
+phase_3_selected_join$model_preb2 <- predict(model_4, phase_3_selected_join,type = "response")
+phase_3_selected_join <- phase_3_selected_join  %>% mutate(model_pred2 = 1*(model_preb2 > .5) + 0,
+                                 visit_binary2 = 1*(selected == 1) + 0)
+phase_3_selected_join <- phase_3_selected_join %>% mutate(accurate2 = 1*(model_pred2 == visit_binary2))
+sum(phase_3_selected_join$accurate2)/nrow(phase_3_selected_join)
+```
+
+
