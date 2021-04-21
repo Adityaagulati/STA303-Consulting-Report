@@ -83,32 +83,60 @@ hires <- read_csv("data/final-hires-newgrad_2020.csv")
 
 _For each research question, you will want to briefly describe any data manipulation, show some exploratory plots/summary tables, report on any methods you use (i.e. models you fit) and the conclusions you draw from these_
 
-```{r}
-# This chunk provides an example of some things you can do with RMarkdown to make your report creation process easier
-
-# read in the data
-black_saber_current_employees <- read_csv("data/black-saber-current-employees.csv")
-final_hires_newgrad_2020 <- read_csv("data/final-hires-newgrad_2020.csv")
-
-# create a visualisation
-my_plot <- black_saber_current_employees %>% 
-  ggplot(aes(x = productivity)) +
-  geom_histogram(colour = "grey", fill = "#6C3082") +
-  theme_minimal() +
-  labs(title = "Look! A title. But do you want a title or a caption for your report?", x = "This is a changed x label")
-
-# save your plot in your images folder, you can specify the height and width, too
-# saving this means you can add the image to your exectuve summary without having to run or rerun the code, if you wish
-ggsave("images/example.png", width = 7, height = 4)
-
-# norice how the image is included with the ![](file/path.png) below
-```
-
 ### Dataset
+
+```{r}
+## Dataset ###################################################################
+black_saber_current_employees <- black_saber_current_employees %>% 
+  mutate(
+    salary = as.numeric(gsub('[$,]', '', salary))
+  )
+
+# Relevel the roles in ascending order
+black_saber_current_employees$role_seniority = fct_relevel(
+    black_saber_current_employees$role_seniority,
+    "Entry-level",
+    "Junior I",
+    "Junior II",
+    "Senior I",
+    "Senior II",
+    "Senior III",
+    "Manager",
+    "Director",
+    "Vice president"
+  )
+
+black_saber_current_employees$leadership_for_level = fct_relevel(
+  black_saber_current_employees$leadership_for_level,
+  "Appropriate for level",
+  "Needs improvement",
+  "Exceeds expectations"
+)
+```
 
 The "current employee dataset" consisted of information on the current employees at Black Saber Software. It recorded each employee's quarterly data on gender, leadership level, their role-seniority within the organization, productivity, the team they belonged to, and salary they received in each quarter. The employee information was recorded anonymously so that the privacy of the employee is safely protected in our assessment.
 
 In our research, we conducted two tests derived from the employee dataset. The first test was to check whether there exists a gender bias in the salary of current employees. For this particular test, we used the current employee's data collected from Black Saber Software without any further alterations. The model included 6,906 current employees. To study the gender bias in the salary, we considered gender, role seniority, leadership, and productivity as fixed variables, and team as a random variable.
+
+### Model
+
+```{r}
+salary_model1 <- glm(salary ~ gender + role_seniority + leadership_for_level + productivity, data = black_saber_current_employees)
+
+summary(salary_model1)
+confint(salary_model1)
+
+salary_model2 <- lmer(salary ~ gender + role_seniority + leadership_for_level + productivity + (1|team), data = black_saber_current_employees)
+
+summary(salary_model2)
+confint(salary_model2)
+
+lmtest::lrtest(salary_model1, salary_model2)
+```
+
+First, we used a generalized linear model on gender bias in salary with variables of role seniority, leadership, and productivity without the team variable. This model showed that the variable gender and role seniority are significant with extremely small p-value. Also, at 95% confidence interval, there was no evidence that leadership and productivity are significant to the salary, but gender and role seniority were. The second model used a linear mixed model adding team variable as random effect. The model showed that men earn $1,763.21 more on average than women for each quarter, and the average salary got higher as they were promoted to senior positions. By looking at the t-values, we figured that the gender and role seniority variable have large t-values indicating they are both significant. The confidence interval of this model seemed to have similar results with the first model.
+
+At last, we used a likelihood ratio test to determine which model fitted the data better. Since there was strong evidence with p-value less than 0.01 against that generalized linear model explains the data as well, we determined that the linear mixed effect model with team variable as random effect explains the data better than the generalized linear model.
 
 ## Does gender bias occur in the employee promotions?
 
@@ -333,7 +361,7 @@ phase3_model_2 <- glmer(passed ~ writing_skills + leadership_presence + speaking
 summary(phase3_model_2)
 ```
 
-In phase 2, the AI gave scores to the candidates according to their application and video interview. Here we can check if the AI scores were biased towards a specific gender. We made four linear mixed models for which each response variable was one of the AI score variables. In two out of four variables, more points were given to the men than women by the AI and in one of the models, more points were given to women than men. In particular, women got on average 0.8583 lower with a 95% CI between -1.38 and -0.33 on the leadership presence compared to men, where leadership presence is out of 10. This is significantly lower, especially if leadership presence is heavily weighed when making a hiring decision. Women also had lower speaking skills on average than men.
+In phase 2, the AI gave scores to the candidates according to their application and video interview. Here we can check if the AI scores were biased towards a specific gender. We made four linear mixed models for which each response variable was one of the AI score variables. In two out of four variables, more points were given to the men than women by the AI and in one of the models, more points were given to women than men. In particular, women got on average 0.8583 lower with a 95% CI between -1.38 and -0.33 on the leadership presence compared to men, where leadership presence is out of 10. This is significantly lower, especially if leadership presence is heavily weighed when making a hiring decision. Women also had lower speaking skills on average than men, being rated about 1.7667 lower on average with all other factors being the same, where speaking skills is rated out of 10.
 
 We also made a model for the applicants who passed phase 2. After adding an indicator variable indicating if the applicant passed phase 2, we constructed two mixed effects logistic regression models, both of which used the indicator variable as the response and team as a random effect. One of them used just gender as a fixed effect, and the other used four AI chosen skill factors (leadership presence, writing, speaking, and technical skills) as its fixed effects. We find that gender is not significant in determining if an applicant passes phase 2. However, all 4 skill factors are significant, with their p-values all being well under 0.001. This tells us that although gender doesn't directly play a role in determining if an applicant passes phase 2, it does so indirectly by influencing the leadership presence and speaking skills. Bias therefore exists in this phase, as the biased AI determines the applicants' skill ratings, which are then used to determine if the applicant passes.
 
@@ -355,7 +383,11 @@ The 95% confidence interval for the gender term ranges from -3.9009 to 6.2664. B
 
 _In this section you will summarize your findings across all the research questions and discuss the strengths and limitations of your work. It doesn't have to be long, but keep in mind that often people will just skim the intro and the discussion of a document like this, so make sure it is useful as a semi-standalone section (doesn't have to be completely standalone like the executive summary)._
 
-Since the hiring decision is based on factors ranging from AI grades to the interviews and the AI is biased, we can conclude that the hiring process at Black Saber is biased towards men. On the bright side, the issues reside in the AI; the actual employees are not biased, which would have been a more difficult problem to handle.
+Through our investigations, we observed that Black Saber Software is facing a gender bias in both their remuneration and promotion processes. A male worker on average gets paid $1,763.21 higher compared to a female worker with the same qualifications. Moreover, under a 95% confidence interval, an average male worker at Black Saber Software has a 30.44% higher odds to get promoted compared to a female worker, assuming the two have similar qualifications. In order to avoid such biases to persist, we recommend Black Saber Software to redesign a more appropriate promotion system that is gender neutral to assess their current employees for future promotion opportunities.
+
+In our research of the hiring decision, we found that the AI is biased when it comes to ranking an applicant’s skills. For example, women received on average a score that was 0.8583 lower than men in the leadership presence grade with all other factors being the same. The speaking skill rating also favors men, with men being rated about 1.7667 higher on average. Both of these ratings were out of 10. We also found that gender plays no role in determining an applicant’s interviewer rating; the interviewers at Black Saber are unbiased. Since advancing through the hiring pipeline is based on the AI scores and the hiring decisions are based on both the AI scores and interviews, we can conclude that the hiring process at Black Saber is biased towards men.
+
+During our analysis on the current employee dataset, a limitation we noticed is that each employee serves a different number of years within Black Saber Software. We ignored years of experience in our model and solely focus on the productivity and leadership presence they contribute to the company in each quarter. From a practical point of view, years of experience within a company may be a valid consideration in the actual assessment for promotion opportunities to incentify workers to stay at the company and increase the employees retention rate. However, we think this assumption is a little too broad and may be far from the truth and thus we ignored this factor in our statistical modeling.
 
 ### Strengths and limitations
 
