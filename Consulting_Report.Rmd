@@ -205,18 +205,7 @@ model_technical <- lmer(technical_skills ~ gender + (1|team_applied_for),data = 
 summary(model_technical)
 confint(model_technical)
 ```
-```{r}
-set.seed(1)
-selected <- replicate(1, n = 22) # adding a selected variable  
-phase_3_selected <- cbind(phase3_new_grad_applicants_2020,selected)
-phase_3_selected_join <- left_join(phase_3_selected,phase2_new_grad_applicants_2020)
-phase_merge <- left_join(phase2_new_grad_applicants_2020,phase_3_selected)
-phase_merge[is.na(phase_merge)] = 0
-model_3 <- lme4::glmer(selected ~ gender + (1|team_applied_for),family='binomial', data= phase_merge,nAGQ = 0)
-summary(model_3) #checking if selected depended on gender
-model_4 <- glmer(selected ~ writing_skills + leadership_presence +(leadership_presence|gender) + speaking_skills  + (speaking_skills|gender) + extracurriculars + technical_skills + work_experience,family='binomial', data= phase_merge) #checking if selected depended on other variables
-summary(model_4)
-```
+
 
 
 
