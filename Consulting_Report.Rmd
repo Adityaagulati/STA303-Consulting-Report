@@ -52,6 +52,7 @@ In the study of salary and promotion processes, the results are summarised below
 - Table 1 shows that 58.84% of the entries in the employee data are from males and 39.46% of the entries are from female workers.
 - According to table 2, out of all 6906 entries of quarterly employee data, promotions happened about 569 times, which translates to an 8.24% of promotion rate in the total employee data.
 - After fitting our statistical model, we found that female workers have 30.44% lower odds to be promoted than male workers given the same level of productivity, leadership level and the same team/department they work in.
+- On average, male workers have $1,763.21 higher salary than female workers.
 
 On the other hand, RACS Consulting was also given the new grad hiring datasets and was able to investigate whether the AI software used for hiring and the interviewers at Black Saber were potentially gender biased in the hiring process.
 
@@ -196,6 +197,12 @@ subset <- promotion_rate %>%
 fully_clean <- left_join(employee_clean, subset, by = "employee_id")
 ```
 
+![](images/gender_table.png)
+
+![](images/promotion_table.png)
+
+![](images/figure1.png)
+
 The second test we ran on the current employee dataset was to test whether promotion processes were biased in Black Saber Software. In this particular test, we defined a dummy variable called "promoted" that shows 0 when the person did not get promoted compared to the previous period, or 1, when the person's role-seniority changed compared to the previous period. The new variable would act as the response variable in our test and we would be able to check whether the historical promotion process was gender biased. Since the response is either 0 or 1, it is clear that the response follows a binomial distribution. Thus, it's suitable to model the data using logistic regression.
 
 ### Model
@@ -238,6 +245,50 @@ promotion_model_3 <- gamm4(promoted ~ productivity + gender+ leadership_for_leve
 promotion_model_4 <- glmer(promoted ~ 1 + (1|team), family = binomial , data = testing)
 summary(promotion_model_4)
 confint(promotion_model_4)
+```
+```{r}
+# Male vs female ratio
+promotion_table_1 <- testing %>% 
+  group_by(gender) %>% 
+  summarise(count = n(), .groups = 'drop') %>% 
+  mutate(gender_ratio = count/sum(count))
+
+# Data exploration on the number of promotions happened within the company 
+promotion_table_2 <- testing %>% 
+  mutate(promoted = case_when(
+    promoted == 1 ~ "promoted",
+    promoted == 0 ~ "not promoted"
+  )) %>% 
+  group_by(promoted, gender) %>% 
+  summarise(number_of_promotions = n(), .groups = 'drop') %>% 
+  group_by(promoted) %>% 
+  mutate(ratio = number_of_promotions / sum(number_of_promotions))
+
+kable(promotion_table_1, "html", caption = "Table 1: Male vs Female Ratio") %>%
+  kable_classic(full_width = F) %>%
+  save_kable(file = "images/gender_table.png", density = 100)
+
+kable(promotion_table_1, "html", caption = "Table 2: Promotions and Gender Within Black Saber") %>%
+  kable_classic(full_width = F) %>%
+  save_kable(file = "images/promotion_table.png", density = 100)
+
+# Data exploration on promoted employees
+testing %>% 
+  mutate(promoted = case_when(
+    promoted == 1 ~ "promoted",
+    promoted == 0 ~ "not promoted"
+  )) %>% 
+  filter(promoted == "promoted") %>%
+  ggplot(aes(x = gender, colour = gender, fill = gender)) + 
+    geom_bar(position = "dodge") + 
+    theme_minimal() +
+    scale_y_continuous(breaks = seq(0, 400, 50)) +
+    theme(legend.position = "none") +
+    labs(x = "",
+         y = "Count",
+         caption = "Figure 1: Number of promoted employees by gender"
+         ) +
+  ggsave("images/figure1.png")
 ```
 
 The first model we used in this section is a standard logistic regression with productivity, gender and leadership for level as independent variables. In this model, we observed that under 95% confidence interval, a female faces 37.26% lower odds to be promoted compared to a male worker with all qualifications being the same. Although this result has a high significance level, we noticed that there are different operating teams within the company and we suspect that each team may have a different standard for promoting employees within the group. Thus, in our second model, we decided to include these factors into our generalized linear mixed model and see if random effects of employees working in a different team have any influence on the promotion processes.
@@ -296,15 +347,15 @@ The new grad hiring process consists of 3 phases, with multiple AI-controlled st
 
 ```{r}
 # Tables
-kable(table(applicants$team_applied_for, applicants$gender), "html", caption = "Table 1 Applicants in phase 2") %>%
-  kable_paper(full_width = F) %>%
-  save_kable(file = "images/phase2_table.png")
-kable(table(phase3$team_applied_for, phase3$gender), "html", caption = "Table 2 Applicants in phase 3") %>%
-  kable_paper(full_width = F) %>%
-  save_kable(file = "images/phase3_table.png")
-kable(table(hires$team_applied_for, hires$gender), "html", caption = "Table 3 Applicants who were hired") %>%
-  kable_paper(full_width = F) %>%
-  save_kable(file = "images/hires_table.png")
+kable(table(applicants$team_applied_for, applicants$gender), "html", caption = "Table 3: Applicants in phase 2") %>%
+  kable_classic(full_width = F) %>%
+  save_kable(file = "images/phase2_table.png", density = 100)
+kable(table(phase3$team_applied_for, phase3$gender), "html", caption = "Table 4: Applicants in phase 3") %>%
+  kable_classic(full_width = F) %>%
+  save_kable(file = "images/phase3_table.png", density = 100)
+kable(table(hires$team_applied_for, hires$gender), "html", caption = "Table 5: Applicants who were hired") %>%
+  kable_classic(full_width = F) %>%
+  save_kable(file = "images/hires_table.png", density = 100)
 
 phase3 %>%
   group_by(gender) %>%
@@ -319,10 +370,16 @@ phase3 %>%
 ```
 
 ![](images/phase2_table.png)
+
+We take an initial look at the number of males and females who applied to each team and how far along the hiring process they reached. Table 3 shows us that roughly the same number of men and women made it to phase 2. In fact, there were 89 women in this phase who applied to the Software team, compared to only 78 men.
+
 ![](images/phase3_table.png)
+
+However, table 4 shows that roughly double the number of men were able to move on to phase 3 in both teams. This immediately draws attention because the pattern happened in both teams.
+
 ![](images/hires_table.png)
 
-We take an initial look at the number of males and females who applied to each team and how far along the hiring process they reached. Table 1 shows us that roughly the same number of men and women made it to phase 2. In fact, there were 89 women in this phase who applied to the Software team, compared to only 78 men. However, table 2 shows that roughly double the number of men were able to move on to phase 3 in both teams. This immediately draws attention because the pattern happened in both teams. Finally, 4 men and 1 woman were hired in both teams, as seen in table 3 - once again, for both teams. So overall, roughly the same number of men and women applied for the new grad position, but 4 times more men were hired.
+Finally, 4 men and 1 woman were hired in both teams, as seen in table 5 - once again, for both teams. So overall, roughly the same number of men and women applied for the new grad position, but 4 times more men were hired.
 
 ### Passing Phase 1
 
@@ -412,7 +469,7 @@ The 95% confidence interval for the gender term ranges from -3.9009 to 6.2664. B
 
 _In this section you will summarize your findings across all the research questions and discuss the strengths and limitations of your work. It doesn't have to be long, but keep in mind that often people will just skim the intro and the discussion of a document like this, so make sure it is useful as a semi-standalone section (doesn't have to be completely standalone like the executive summary)._
 
-Through our investigations, we observed that Black Saber Software is facing a gender bias in both their remuneration and promotion processes. A male worker on average gets paid $1,763.21 higher compared to a female worker with the same qualifications. Moreover, under a 95% confidence interval, an average male worker at Black Saber Software has a 30.44% higher odds to get promoted compared to a female worker, assuming the two have similar qualifications. In order to avoid such biases to persist, we recommend Black Saber Software to redesign a more appropriate promotion system that is gender neutral to assess their current employees for future promotion opportunities.
+Through our investigations, we observed that Black Saber Software is facing a gender bias in both their remuneration and promotion processes. A male worker on average gets paid $1,763.21 higher compared to a female worker with the same qualifications. Moreover, under a 95% confidence interval, an average male worker at Black Saber Software has a 30.44% higher odds to get promoted compared to a female worker, assuming the two have similar qualifications. In order to avoid such biases to persist, we recommend Black Saber Software to redesign a more appropriate promotion system that is gender neutral to assess their current employees for future promotion opportunities. Also, the salary calculation system should be more transparent and fair to reduce the pay gap between genders.
 
 In our research of the hiring decision, we found that the AI is biased when it comes to ranking an applicant’s skills. For example, women received on average a score that was 0.8583 lower than men in the leadership presence grade with all other factors being the same. The speaking skill rating also favors men, with men being rated about 1.7667 higher on average. Both of these ratings were out of 10. We also found that gender plays no role in determining an applicant’s interviewer rating; the interviewers at Black Saber are unbiased. Since advancing through the hiring pipeline is based on the AI scores and the hiring decisions are based on both the AI scores and interviews, we can conclude that the hiring process at Black Saber is biased towards men.
 
