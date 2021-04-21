@@ -14,6 +14,7 @@ library(tidyverse)
 library(ggplot2)
 library(lme4)
 library(gamm4)
+library(lmtest)
 ```
 
 ```{r}
@@ -89,35 +90,33 @@ dat_new <- full_join(n_promotion, employee_clean, by = "employee_id")
 
 ```
 
-# data exploration    
-```{r}
-promotion_rate %>% 
-  group_by(gender) %>% 
-  ggplot(aes(x = gender, y = rate)) + 
-  geom_boxplot()
-  
-```
-
 
 
 # Fitting the model
 ```{r}
-# fit a Poisson model (Zero Inflated)
-model_1 <- glm(promoted ~ productivity + gender , data = testing, family = binomial(link= "logit"))
+#  only fixed effects 
+model_1 <- glm(promoted ~ productivity + gender + leadership_for_level, data = testing, family = binomial(link = "logit"))
 summary(model_1)
 confint(model_1)
 
-
-#  add leadership for level
-model_2 <- glm(promoted ~ productivity + gender + leadership_for_level, data = testing, family = binomial(link = "logit"))
+# add full generalized linear mixed model with team and employee id as random effect
+model_2 <- glmer(promoted~ productivity + gender + leadership_for_level + (1|team) + (1|employee_id), nAGQ = 0, family = binomial, data = testing)
 summary(model_2)
 confint(model_2)
 
-# add random intercept for teams 
-model_3 <- gamm4(promoted ~ productivity + gender+ leadership_for_level+ s(team, bs = "re") , family = binomial(link = "logit"), data = testing)
 
-# model with only random effect
-model_4 <- glmer(promoted ~ 1 + (1|team), family = binomial , data = testing)
+# add glmm with team:employee_id
+model_3 <- glmer(promoted~ productivity + gender + leadership_for_level + (1|team:employee_id), nAGQ = 0, family = binomial, data = testing)
+summary(model_3)
+
+
+# glmm with all random stuff 
+model_4 <- glmer(promoted~ productivity + gender + leadership_for_level + (1|team) + (1|team:employee_id), nAGQ = 0, family = binomial, data = testing)
 summary(model_4)
 confint(model_4)
+
+lrtest(model_1, model_4)
 ```
+
+
+
