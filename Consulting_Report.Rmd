@@ -45,6 +45,23 @@ _Guidelines for the executive summary:_
 *	_A small number of key visualizations and/or tables are included_
 *	_All three research questions are addressed_
 
+According to the quarterly datasets provided by Black Saber software, RACS Consulting Limited was able to obtain both salary and role seniority data of current employees and use them to conduct research on the potential gender biases in the remuneration and promotion process in the Black Saber company.
+
+In the study of salary and promotion processes, the results are summarised below:
+
+- Table 1 shows that 58.84% of the entries in the employee data are from males and 39.46% of the entries are from female workers.
+- According to table 2, out of all 6906 entries of quarterly employee data, promotions happened about 569 times, which translates to an 8.24% of promotion rate in the total employee data.
+- After fitting our statistical model, we found that female workers have 30.44% lower odds to be promoted than male workers given the same level of productivity, leadership level and the same team/department they work in.
+
+On the other hand, RACS Consulting was also given the new grad hiring datasets and was able to investigate whether the AI software used for hiring and the interviewers at Black Saber were potentially gender biased in the hiring process.
+
+- Although there were a roughly equal number of men and women candidates in phase 2, this ratio doubled to about twice the number of men as women in phase 3 and exactly 4 men and 1 woman hired in both teams.
+- We made two models. In the model with gender, 1.09 lesser times women would be selected than men but this is not significant so we cannot use this. In the other model, the GPA and extracurriculars have 38222.094 and 125.46 times more chance of getting selected.
+- In Phase 2,  we made four models and in each of them, we checked if the scoring of them is biased for any specific gender. 5.87 times lower women would get scored than men for speaking skills and similarly lesser odds for 2.36 times lower women would get scored than men for leadership presence.
+- But in writing skills 82.43 times women would get a higher score than men. This shows AI is biased towards specific gender while scoring.
+- We made two models, the first one with gender. It shows 2.38 lower times women would be selected than men but the value is not significant. The second model showed 1.09 times writing skills, 2.64 times leadership presence, 2.08 times for speaking skills and 1.08 times for technical skills are likely to be selected.
+- The selection criteria are dependent on variables that are scored by AI but these scoring variables are biased for a specific gender. So, AI is biased but indirectly.
+- In our fitted model for interviewer ratings, we found that gender is not a significant factor in determining the interviewer ratings, meaning that the interviewers of Black Saber are not gender biased.
 
 \newpage
 # Technical report
@@ -71,6 +88,9 @@ library(tidyverse)
 library(ggplot2)
 library(lme4)
 library(gamm4)
+library(knitr)
+library(kableExtra)
+library(magick)
 
 black_saber_current_employees <- read_csv("data/black-saber-current-employees.csv")
 phase1 <- read_csv("data/phase1-new-grad-applicants-2020.csv")
@@ -114,11 +134,9 @@ black_saber_current_employees$leadership_for_level = fct_relevel(
 )
 ```
 
-The "current employee dataset" consisted of information on the current employees at Black Saber Software. It recorded each employee's quarterly data on gender, leadership level, their role-seniority within the organization, productivity, the team they belonged to, and salary they received in each quarter. The employee information was recorded anonymously so that the privacy of the employee is safely protected in our assessment.
-
 In our research, we conducted two tests derived from the employee dataset. The first test was to check whether there exists a gender bias in the salary of current employees. For this particular test, we used the current employee's data collected from Black Saber Software without any further alterations. The model included 6,906 current employees. To study the gender bias in the salary, we considered gender, role seniority, leadership, and productivity as fixed variables, and team as a random variable.
 
-### Model
+### Methods
 
 ```{r}
 salary_model1 <- glm(salary ~ gender + role_seniority + leadership_for_level + productivity, data = black_saber_current_employees)
@@ -137,6 +155,7 @@ lmtest::lrtest(salary_model1, salary_model2)
 First, we used a generalized linear model on gender bias in salary with variables of role seniority, leadership, and productivity without the team variable. This model showed that the variable gender and role seniority are significant with extremely small p-value. Also, at 95% confidence interval, there was no evidence that leadership and productivity are significant to the salary, but gender and role seniority were. The second model used a linear mixed model adding team variable as random effect. The model showed that men earn $1,763.21 more on average than women for each quarter, and the average salary got higher as they were promoted to senior positions. By looking at the t-values, we figured that the gender and role seniority variable have large t-values indicating they are both significant. The confidence interval of this model seemed to have similar results with the first model.
 
 At last, we used a likelihood ratio test to determine which model fitted the data better. Since there was strong evidence with p-value less than 0.01 against that generalized linear model explains the data as well, we determined that the linear mixed effect model with team variable as random effect explains the data better than the generalized linear model.
+
 
 ## Does gender bias occur in the employee promotions?
 
@@ -277,9 +296,15 @@ The new grad hiring process consists of 3 phases, with multiple AI-controlled st
 
 ```{r}
 # Tables
-addmargins(table(applicants$team_applied_for, applicants$gender))
-table(phase3$team_applied_for, phase3$gender)
-table(hires$team_applied_for, hires$gender)
+kable(table(applicants$team_applied_for, applicants$gender), "html", caption = "Table 1 Applicants in phase 2") %>%
+  kable_paper(full_width = F) %>%
+  save_kable(file = "images/phase2_table.png")
+kable(table(phase3$team_applied_for, phase3$gender), "html", caption = "Table 2 Applicants in phase 3") %>%
+  kable_paper(full_width = F) %>%
+  save_kable(file = "images/phase3_table.png")
+kable(table(hires$team_applied_for, hires$gender), "html", caption = "Table 3 Applicants who were hired") %>%
+  kable_paper(full_width = F) %>%
+  save_kable(file = "images/hires_table.png")
 
 phase3 %>%
   group_by(gender) %>%
@@ -293,7 +318,11 @@ phase3 %>%
   )
 ```
 
-We take an initial look at the number of males and females who applied to each team and how far along the hiring process they reached. Figure XX shows us that roughly the same number of men and women made it to phase 2. In fact, there were 89 women in this phase who applied to the Software team, compared to only 78 men. However, figure YY shows that roughly double the number of men were able to move on to phase 3 in both teams. This immediately draws attention because the pattern happened in both teams. Finally, 4 men and 1 woman were hired in both teams, as seen in figure ZZ - once again, for both teams. So overall, roughly the same number of men and women applied for the new grad position, but 4 times more men were hired.
+![](images/phase2_table.png)
+![](images/phase3_table.png)
+![](images/hires_table.png)
+
+We take an initial look at the number of males and females who applied to each team and how far along the hiring process they reached. Table 1 shows us that roughly the same number of men and women made it to phase 2. In fact, there were 89 women in this phase who applied to the Software team, compared to only 78 men. However, table 2 shows that roughly double the number of men were able to move on to phase 3 in both teams. This immediately draws attention because the pattern happened in both teams. Finally, 4 men and 1 woman were hired in both teams, as seen in table 3 - once again, for both teams. So overall, roughly the same number of men and women applied for the new grad position, but 4 times more men were hired.
 
 ### Passing Phase 1
 
@@ -397,9 +426,13 @@ During our analysis on the current employee dataset, a limitation we noticed is 
 
 *Complete this section with a brief bio for each member of your group. If you are completing the project individually, you only need to complete one for yourself. In that case, change the title of this section to 'Consultant profile' instead. Examples below. This section is only marked for completeness, clarity and professionalism, not 'truth' so you can write it as if we're a few years in the future. Put your current degree in as completed and/or add your first choice grad school program, whatever you like. What skills related skills would you most like to highlight? What job title do you want?*
 
-**Statsy McStatsstats**. Statsy is a senior consultant with Eminence Analytics. She specializes in data visualization. Statsy earned her Bachelor of Science, Specialist in Statistics Methods and Practice, from the University of Toronto in 2023.
+**Ruei-Hung (Ray) Chen**. Ray is the Senior Data Scientist at RACS Consulting Limited. He has been with the company since 1999 and has led several high-profile projects such as the housing bubble estimation project in 2008. His findings eventually caused the housing bubble to burst and led to the financial crisis in 08. He earned his Bachelor degree in Culinary Art from the University of NotSoGreat in 1987.
 
-**Datana Scatterplot**. Datana is a junior consultant with Eminence Analytics. They specialize in reproducible analysis and statistical communication. Datana earned their Bachelor of Science, Majoring in Computer Science and Statistics from the University of Toronto in 2024.
+**Stella Bae**. Stella is a junior consultant at RACS Consulting Limited. She specializes in reproducible analysis and marketing management. Stella earned her Bachelor of Science, majoring in Statistics and Media Studies from the University of Toronto.
+
+**Aditya Gulati**. Aditya is a senior consultant with RACS consulting limited. He specializes in data visualization. Aditya earned his Bachelor of Science, Major in Statistics and Mathematics, from the University of Toronto in 2022.
+
+**Cullen Pu**. Cullen is a Junior Analyst Intern at RACS Consulting Limited. He’s been with the company for 1 month and has yet to work on a large-scale project. He specializes in data visualization and programming and will earn his B.S. in Statistics & Computer Science from the University of Toronto in 2022.
 
 ## Code of ethical conduct
 
@@ -408,5 +441,9 @@ _This section should be fairly short, no more than half a page. Assume a general
 * _Make at least three relevant statements about your company's approach to ethical statistical consulting. These should be appropriately in line with professional conduct advice like the (Statistical Society of Canada Code of Conduct)[https://ssc.ca/sites/default/files/data/Members/public/Accreditation/ethics_e.pdf] or the (Ethical Guidelines for Statistical Practice from the American Statistical Society)[https://www.amstat.org/ASA/Your-Career/Ethical-Guidelines-for-Statistical-Practice.aspx]. For example, "the customer is always right" ISN'T the type of thing an ethical statistical consultant would include._
 *	_Be very careful not to just copy and paste from these other documents! Put things in your own words._
 
+- Respect the client’s privacy agreement and prohibit disclosing information to a third party outside of RACS Consulting Group.
+- After the initiation of the project, avoid frequent contacts with the client to ensure the unbiasedness in our investigations.
+- Respect the source of the data and prohibit any usage of the provided datasets for purposes outside of the project.
+- Refuse to manipulate data/ investigations for clients to achieve goals outside of the agreed upon projects.
 
 __Final advice: KNIT EARLY AND OFTEN!__
