@@ -140,17 +140,22 @@ In our research, we conducted two tests derived from the employee dataset. The f
 ### Methods
 
 ```{r}
-salary_model1 <- glm(salary ~ gender + role_seniority + leadership_for_level + productivity, data = black_saber_current_employees)
 
-summary(salary_model1)
-confint(salary_model1)
+#generalized linear model
+model1 <- glm(salary ~ gender + role_seniority + leadership_for_level + productivity, data = black_saber_current_employees)
 
-salary_model2 <- lmer(salary ~ gender + role_seniority + leadership_for_level + productivity + (1|team), data = black_saber_current_employees)
+summary(model1)
+confint(model1)
 
-summary(salary_model2)
-confint(salary_model2)
+#linear mixed model 
+model2 <- lmer(salary ~ gender + role_seniority + leadership_for_level + productivity + (1|team), data = black_saber_current_employees)
 
-lmtest::lrtest(salary_model1, salary_model2)
+summary(model2)
+confint(model2)
+
+#likelihood ratio test between two models
+lmtest::lrtest(model1, model2)
+
 ```
 
 First, we used a generalized linear model on gender bias in salary with variables of role seniority, leadership, and productivity without the team variable. This model showed that the variable gender and role seniority are significant with extremely small p-value. Also, at 95% confidence interval, there was no evidence that leadership and productivity are significant to the salary, but gender and role seniority were. The second model used a linear mixed model adding team variable as random effect. The model showed that men earn $1,763.21 more on average than women for each quarter, and the average salary got higher as they were promoted to senior positions. By looking at the t-values, we figured that the gender and role seniority variable have large t-values indicating they are both significant. The confidence interval of this model seemed to have similar results with the first model.
