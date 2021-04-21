@@ -197,11 +197,13 @@ summary(model_speaking)
 confint(model_speaking)
 model_writing <- lmer(writing_skills ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020) # if the writing_skills depended on gender
 summary(model_writing)
+confint(model_writing)
 model_leadership <- lmer(leadership_presence ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020) # if the leadership_presence depended on gender
 summary(model_leadership)
 confint(model_leadership)
 model_technical <- lmer(technical_skills ~ gender + (1|team_applied_for),data = phase2_new_grad_applicants_2020)  # if the technical_skills depended on gender
 summary(model_technical)
+confint(model_technical)
 ```
 ```{r}
 set.seed(1)
