@@ -42,7 +42,7 @@ promotion_stat <- employee_clean %>%
   mutate(quarter_of_service= sum(count)) 
 
 
-#times of promotion 
+# number of times each employee get promoted 
 n_promotion <- promotion_stat %>% 
   group_by(employee_id) %>% 
   count(role_seniority) %>% 
@@ -57,7 +57,7 @@ promotion_rate <-  full_join(n_promotion, promotion_stat, by = "employee_id") %>
 
 # promoted employees and their promotion rate by quarter
 subset <- promotion_rate %>% 
-  select(employee_id, rate) %>% 
+  select(employee_id, rate, n_promotion) %>% 
   distinct()
 
 
@@ -65,6 +65,8 @@ subset <- promotion_rate %>%
 fully_clean <- left_join(employee_clean, subset, by = "employee_id")
 
 ```
+
+
 
 
 ```{r}
@@ -77,12 +79,6 @@ testing <- employee_clean %>%
   mutate(team = as_factor(team)) %>% 
   mutate(leadership_for_level =fct_relevel(leadership_for_level))
 
-testing %>% 
-  group_by(promoted) %>% 
-  summarise(count = n(), .groups = 'drop')
-
-
-levels(testing$leadership_for_level)
 
 # data for promotion count link to each person's employee data
 dat_new <- full_join(n_promotion, employee_clean, by = "employee_id") 
@@ -90,31 +86,63 @@ dat_new <- full_join(n_promotion, employee_clean, by = "employee_id")
 
 ```
 
+```{r}
+# male vs female ratio
+testing %>% 
+  group_by(gender) %>% 
+  summarise(count = n(), .groups = 'drop') %>% 
+  mutate(gender_ratio = count/sum(count))
+
+# data exploration on the number of promotions happened within the company 
+testing %>% 
+  mutate(promoted = case_when(
+    promoted == 1 ~ "promoted",
+    promoted == 0 ~ "not promoted"
+  )) %>% 
+  group_by(promoted, gender) %>% 
+  summarise(number_of_promotions = n(), .groups = 'drop') %>% 
+  group_by(promoted) %>% 
+  mutate(ratio = number_of_promotions/ sum(number_of_promotions))
+  
+
+# data exploration on promoted employees
+testing %>% 
+  mutate(promoted = case_when(
+    promoted == 1 ~ "promoted",
+    promoted == 0 ~ "not promoted"
+  )) %>% 
+  filter(promoted == "promoted") %>% 
+  ggplot(aes(x = promoted, colour = gender, fill = gender)) + 
+  geom_bar(position = "dodge") + 
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, 400, 50)) + 
+  labs(title = "Number of promoted employees by gender",
+       caption = "figure 1")
+
+# # data exploration on number of promotion by gender 
+# fully_clean %>% 
+#   ggplot(aes(x = gender, y = n_promotion)) + 
+#   geom_boxplot() + 
+#   theme_minimal()
+
+```
+
+
 
 
 # Fitting the model
 ```{r}
-#  only fixed effects 
+#  model with only fixed effects 
 model_1 <- glm(promoted ~ productivity + gender + leadership_for_level, data = testing, family = binomial(link = "logit"))
 summary(model_1)
 confint(model_1)
 
-# add full generalized linear mixed model with team and employee id as random effect
-model_2 <- glmer(promoted~ productivity + gender + leadership_for_level + (1|team) + (1|employee_id), nAGQ = 0, family = binomial, data = testing)
-summary(model_2)
-confint(model_2)
-
-
-# add glmm with team:employee_id
-model_3 <- glmer(promoted~ productivity + gender + leadership_for_level + (1|team:employee_id), nAGQ = 0, family = binomial, data = testing)
-summary(model_3)
-
-
-# glmm with all random stuff 
+# glmm with all random effects on team and team:employee_id
 model_4 <- glmer(promoted~ productivity + gender + leadership_for_level + (1|team) + (1|team:employee_id), nAGQ = 0, family = binomial, data = testing)
 summary(model_4)
 confint(model_4)
 
+# likelihood ratio test between the two models to help with model selection
 lrtest(model_1, model_4)
 ```
 
