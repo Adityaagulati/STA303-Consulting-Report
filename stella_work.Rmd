@@ -51,13 +51,15 @@ black_saber_current_employees$leadership_for_level = fct_relevel(
 
 ```{r model}
 
-model1 <- lmer(salary ~ gender + role_seniority + leadership_for_level + productivity + (1|team), data = black_saber_current_employees)
+model1 <- glm(salary ~ gender + role_seniority + leadership_for_level + productivity, data = black_saber_current_employees)
 
 summary(model1)
 confint(model1)
 
-model2 <- glm(salary ~ gender + role_seniority + leadership_for_level + productivity, data = black_saber_current_employees)
+model2 <- lmer(salary ~ gender + role_seniority + leadership_for_level + productivity + (1|team), data = black_saber_current_employees)
 
 summary(model2)
+confint(model2)
 
+lmtest::lrtest(model1, model2)
 ```
