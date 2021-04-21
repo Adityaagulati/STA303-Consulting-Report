@@ -115,7 +115,9 @@ testing %>%
   ggplot(aes(x = promoted, colour = gender, fill = gender)) + 
   geom_bar(position = "dodge") + 
   theme_minimal() +
-  scale_y_continuous(breaks = seq(0, 400, 50))
+  scale_y_continuous(breaks = seq(0, 400, 50)) + 
+  labs(title = "Number of promoted employees by gender",
+       caption = "figure 1")
 
 # # data exploration on number of promotion by gender 
 # fully_clean %>% 
