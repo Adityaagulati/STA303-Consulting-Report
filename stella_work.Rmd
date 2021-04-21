@@ -59,5 +59,7 @@ confint(model1)
 model2 <- glm(salary ~ gender + role_seniority + leadership_for_level + productivity, data = black_saber_current_employees)
 
 summary(model2)
+confint(model2)
+
 
 ```
